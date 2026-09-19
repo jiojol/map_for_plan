@@ -1,0 +1,94 @@
+Panels:
+  - Class: rviz/Displays
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /Plan map1
+        - /Path1
+      Splitter Ratio: 0.54
+    Tree Height: 640
+  - Class: rviz/Views
+    Name: Views
+    Splitter Ratio: 0.5
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.25
+      Cell Size: 2
+      Class: rviz/Grid
+      Color: 90; 90; 94
+      Enabled: true
+      Name: Grid
+      Plane: XY
+      Plane Cell Count: 30
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Alpha: 0.9
+      Class: rviz/PointCloud2
+      Color: 46; 204; 113
+      Color Transformer: FlatColor
+      Enabled: true
+      Name: Plan map
+      Size (m): 0.20
+      Style: Flat Squares
+      Topic: /plan_map/free
+      Use Fixed Frame: true
+      Value: true
+    - Alpha: 1
+      Class: rviz/Path
+      Color: 52; 152; 219
+      Enabled: true
+      Line Style: Billboards
+      Line Width: 0.12
+      Name: Path
+      Topic: /plan_map/path
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /plan_map/start
+      Name: Start
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /plan_map/end
+      Name: End
+      Value: true
+    - Alpha: 1
+      Class: rviz/Axes
+      Enabled: true
+      Length: 2
+      Name: Axes
+      Radius: 0.12
+      Reference Frame: map
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 30; 30; 32
+    Fixed Frame: map
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz/Interact
+    - Class: rviz/MoveCamera
+    - Class: rviz/FocusCamera
+    - Class: rviz/Measure
+  Value: true
+  Views:
+    Current:
+      Class: rviz/Orbit
+      Distance: 80
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 2
+      Name: Current View
+      Pitch: 0.6
+      Target Frame: map
+      Yaw: 2.2
+    Saved: ~
+Window Geometry:
+  Height: 1000
+  Width: 1600
+  X: 80
+  Y: 60
