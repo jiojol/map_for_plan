@@ -4,6 +4,14 @@
 
 输入只要一份 TUM：`t x y z [qx qy qz qw]`。
 
+## 效果
+
+绿带是单层可通行体素，蓝线是轨迹，青/橙点是起终点。仓库只放截图，不上传 `output/` 里的点云和轨迹数据。
+
+![俯视可通行地图](image/plan_map_top.png)
+
+![三维可通行地图](image/plan_map_3d.png)
+
 ## 依赖
 
 - ROS Noetic：`rospy`、`rviz`、`nav_msgs`、`sensor_msgs`、`visualization_msgs`
