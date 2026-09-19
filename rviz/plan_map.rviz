@@ -5,9 +5,15 @@ Panels:
       Expanded:
         - /Global Options1
         - /Plan map1
-        - /Path1
+        - /Global path1
       Splitter Ratio: 0.54
     Tree Height: 640
+  - Class: rviz/Tool Properties
+    Expanded:
+      - /3D Pose Estimate1
+      - /3D Nav Goal1
+    Name: Tool Properties
+    Splitter Ratio: 0.59
   - Class: rviz/Views
     Name: Views
     Splitter Ratio: 0.5
@@ -35,25 +41,44 @@ Visualization Manager:
       Topic: /plan_map/free
       Use Fixed Frame: true
       Value: true
-    - Alpha: 1
+    - Alpha: 0.45
       Class: rviz/Path
-      Color: 52; 152; 219
+      Color: 80; 140; 190
       Enabled: true
-      Line Style: Billboards
-      Line Width: 0.12
-      Name: Path
+      Line Style: Lines
+      Line Width: 0.06
+      Name: Recorded path
       Topic: /plan_map/path
       Value: true
+    - Alpha: 1
+      Class: rviz/Path
+      Color: 255; 80; 200
+      Enabled: true
+      Line Style: Billboards
+      Line Width: 0.18
+      Name: Global path
+      Topic: /plan_map/global_path
+      Value: true
     - Class: rviz/Marker
       Enabled: true
+      Marker Topic: /plan_map/query_start
+      Name: Query start
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /plan_map/query_goal
+      Name: Query goal
+      Value: true
+    - Class: rviz/Marker
+      Enabled: false
       Marker Topic: /plan_map/start
-      Name: Start
-      Value: true
+      Name: Traj start
+      Value: false
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /plan_map/end
-      Name: End
-      Value: true
+      Name: Traj end
+      Value: false
     - Alpha: 1
       Class: rviz/Axes
       Enabled: true
@@ -73,6 +98,18 @@ Visualization Manager:
     - Class: rviz/MoveCamera
     - Class: rviz/FocusCamera
     - Class: rviz/Measure
+    - Class: rviz/SetInitialPose
+      Topic: /initialpose
+    - Class: rviz/SetGoal
+      Topic: /move_base_simple/goal
+    - Class: plan_map_rviz/Set3DInitialPose
+      Topic: /initialpose
+      X std deviation: 0.5
+      Y std deviation: 0.5
+      Z std deviation: 0.5
+      Theta std deviation: 0.2618
+    - Class: plan_map_rviz/Set3DNavGoal
+      Topic: /move_base_simple/goal
   Value: true
   Views:
     Current:

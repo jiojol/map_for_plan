@@ -16,4 +16,4 @@ TRAJ="$1"
 PREFIX="${2:-${ROOT}/output/$(basename "${TRAJ%.*}")}"
 
 python3 "${ROOT}/scripts/tum_to_plan_map.py" --traj "${TRAJ}" --output-prefix "${PREFIX}"
-exec roslaunch map_for_plan visualize.launch meta:="${PREFIX}_plan.json"
+exec roslaunch map_for_plan plan.launch meta:="${PREFIX}_plan.json"

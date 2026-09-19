@@ -1,0 +1,16 @@
+<library path="lib/libmap_for_plan_rviz">
+  <class name="plan_map_rviz/Set3DInitialPose"
+         type="plan_map_rviz::Init3DTool"
+         base_class_type="rviz::Tool">
+    <description>
+      3D Pose Estimate：点击绿色可通行地图取起点（含高度），拖动设朝向，滚轮改高度，松开发布到 /initialpose。
+    </description>
+  </class>
+  <class name="plan_map_rviz/Set3DNavGoal"
+         type="plan_map_rviz::Goal3DTool"
+         base_class_type="rviz::Tool">
+    <description>
+      3D Nav Goal：点击绿色可通行地图取终点（含高度），拖动设朝向，滚轮改高度，松开发布到 /move_base_simple/goal。
+    </description>
+  </class>
+</library>

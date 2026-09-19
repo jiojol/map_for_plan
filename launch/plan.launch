@@ -1,0 +1,20 @@
+<launch>
+    <arg name="meta" default="$(find map_for_plan)/output/fastlio_traj_a2_台阶_lio_plan.json" />
+    <arg name="frame_id" default="map" />
+    <arg name="snap_radius" default="2.0" />
+    <arg name="max_step" default="0.80" />
+    <arg name="center_weight" default="6.0" />
+    <arg name="start_rviz" default="true" />
+
+    <node pkg="map_for_plan" type="visualize_plan_map.py"
+          name="visualize_plan_map" output="screen"
+          args="--meta $(arg meta) --frame-id $(arg frame_id)" />
+
+    <node pkg="map_for_plan" type="global_planner.py"
+          name="global_planner" output="screen"
+          args="--meta $(arg meta) --frame-id $(arg frame_id) --snap-radius $(arg snap_radius) --max-step $(arg max_step) --center-weight $(arg center_weight)" />
+
+    <node if="$(arg start_rviz)"
+          pkg="rviz" type="rviz" name="rviz"
+          args="-d $(find map_for_plan)/rviz/plan_map.rviz" />
+</launch>

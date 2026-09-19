@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <rect x="2" y="2" width="28" height="28" rx="4" fill="#2d6a2d"/>
+  <path d="M6 22 L18 16 L6 10 Z" fill="#7CFF7C"/>
+  <path d="M20 8 L24 16 L20 24" fill="none" stroke="#c8ffc8" stroke-width="2.2"/>
+  <text x="23" y="13" font-size="7" font-family="sans-serif" fill="#e8ffe8" font-weight="700">3</text>
+</svg>

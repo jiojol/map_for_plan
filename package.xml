@@ -2,14 +2,20 @@
 <package format="2">
   <name>map_for_plan</name>
   <version>0.1.0</version>
-  <description>Build a single-layer FREE plan map from a TUM trajectory and show it in RViz.</description>
+  <description>Build a single-layer FREE plan map from a TUM trajectory, then click start/goal in RViz and run fast global planning.</description>
   <maintainer email="xzq@todo.todo">xzq</maintainer>
   <license>MIT</license>
   <buildtool_depend>catkin</buildtool_depend>
-  <exec_depend>rospy</exec_depend>
-  <exec_depend>nav_msgs</exec_depend>
-  <exec_depend>sensor_msgs</exec_depend>
-  <exec_depend>geometry_msgs</exec_depend>
-  <exec_depend>visualization_msgs</exec_depend>
-  <exec_depend>rviz</exec_depend>
+  <depend>rospy</depend>
+  <depend>roscpp</depend>
+  <depend>nav_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>rviz</depend>
+  <depend>pluginlib</depend>
+  <depend>tf2</depend>
+  <export>
+    <rviz plugin="${prefix}/plugin_description.xml"/>
+  </export>
 </package>
