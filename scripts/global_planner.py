@@ -202,9 +202,13 @@ def _load_graph(meta: dict, max_step: float, center_weight: float) -> FreeGraph:
 def _path_center_score(graph: FreeGraph, path: np.ndarray) -> float:
     keys = [
         graph.index.get(
-            (int(math.floor(x / graph.resolution)), int(math.floor(y / graph.resolution)))
+            (
+                int(math.floor(x / graph.resolution)),
+                int(math.floor(y / graph.resolution)),
+                int(math.floor(z / graph.resolution)),
+            )
         )
-        for x, y, _z in path
+        for x, y, z in path
     ]
     vals = [graph.center_pen[i] for i in keys if i is not None]
     return float(np.mean(vals)) if vals else 1.0

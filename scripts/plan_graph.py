@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-Key = Tuple[int, int]
+Key = Tuple[int, int, int]
 Neighbor = Tuple[int, float]
 
 XY_DIRS = (
@@ -43,10 +43,16 @@ class FreeGraph:
         self.center_weight = max(0.0, float(center_weight))
         self.keys: List[Key] = []
         self.index: Dict[Key, int] = {}
-        for i, (x, y, _z) in enumerate(self.points):
-            key = (int(math.floor(x / self.resolution)), int(math.floor(y / self.resolution)))
+        self.columns: Dict[Tuple[int, int], List[int]] = {}
+        for i, (x, y, z) in enumerate(self.points):
+            key = (
+                int(math.floor(x / self.resolution)),
+                int(math.floor(y / self.resolution)),
+                int(math.floor(z / self.resolution)),
+            )
             self.keys.append(key)
             self.index[key] = i
+            self.columns.setdefault(key[:2], []).append(i)
         self.clearance = self._clearance_cells()
         self.center_pen = self._center_penalty(centerline)
         self.adj: List[List[Neighbor]] = [[] for _ in range(len(self.points))]
@@ -54,23 +60,26 @@ class FreeGraph:
 
     def _clearance_cells(self) -> np.ndarray:
         """到走廊边界的格子距离：0 在边，越大越居中。"""
-        dist = np.full(len(self.points), -1, dtype=np.int32)
+        xy_keys = list(self.columns)
+        xy_index = {key: i for i, key in enumerate(xy_keys)}
+        dist = np.full(len(xy_keys), -1, dtype=np.int32)
         queue: deque = deque()
-        for i, (ix, iy) in enumerate(self.keys):
-            if any((ix + dx, iy + dy) not in self.index for dx, dy in CARDINALS):
+        for i, (ix, iy) in enumerate(xy_keys):
+            if any((ix + dx, iy + dy) not in xy_index for dx, dy in CARDINALS):
                 dist[i] = 0
                 queue.append(i)
         while queue:
             i = queue.popleft()
-            ix, iy = self.keys[i]
+            ix, iy = xy_keys[i]
             for dx, dy in CARDINALS:
-                j = self.index.get((ix + dx, iy + dy))
+                j = xy_index.get((ix + dx, iy + dy))
                 if j is None or dist[j] >= 0:
                     continue
                 dist[j] = dist[i] + 1
                 queue.append(j)
         dist[dist < 0] = 0
-        return dist.astype(np.float64)
+        by_xy = {key: float(dist[i]) for i, key in enumerate(xy_keys)}
+        return np.asarray([by_xy[key[:2]] for key in self.keys], dtype=np.float64)
 
     def _center_penalty(self, centerline: Optional[np.ndarray]) -> np.ndarray:
         """0=最居中，1=贴边。净空 + 到中线距离。"""
@@ -83,35 +92,26 @@ class FreeGraph:
         if centerline is None or len(centerline) == 0:
             return edge
 
-        seeds: deque = deque()
-        lat = np.full(len(self.points), -1, dtype=np.int32)
-        for x, y, _z in np.asarray(centerline, dtype=np.float64):
-            key = (int(math.floor(x / self.resolution)), int(math.floor(y / self.resolution)))
-            idx = self.index.get(key)
-            if idx is None or lat[idx] == 0:
-                continue
-            lat[idx] = 0
-            seeds.append(idx)
-        while seeds:
-            i = seeds.popleft()
-            ix, iy = self.keys[i]
-            for dx, dy in CARDINALS:
-                j = self.index.get((ix + dx, iy + dy))
-                if j is None or lat[j] >= 0:
-                    continue
-                lat[j] = lat[i] + 1
-                seeds.append(j)
-        lat[lat < 0] = int(lat.max()) if lat.max() >= 0 else 0
-        lmax = float(lat.max()) if lat.max() > 0 else 1.0
-        return np.clip(0.35 * edge + 0.65 * (lat.astype(np.float64) / lmax), 0.0, 1.0)
+        center_xy = np.asarray(centerline, dtype=np.float64)[:, :2]
+        lateral = np.empty(len(self.points), dtype=np.float64)
+        batch = 1024
+        for begin in range(0, len(self.points), batch):
+            query = self.points[begin : begin + batch, :2]
+            delta = query[:, None, :] - center_xy[None, :, :]
+            lateral[begin : begin + batch] = np.sqrt(
+                np.min(np.einsum("ijk,ijk->ij", delta, delta), axis=1)
+            )
+        lmax = max(float(lateral.max()), self.resolution)
+        return np.clip(0.35 * edge + 0.65 * (lateral / lmax), 0.0, 1.0)
 
     def _build_edges(self) -> None:
-        for i, (ix, iy) in enumerate(self.keys):
+        for i, (ix, iy, iz) in enumerate(self.keys):
             z0 = self.points[i, 2]
             for dx, dy, horiz in XY_DIRS:
-                j = self.index.get((ix + dx, iy + dy))
-                if j is None:
+                candidates = self.columns.get((ix + dx, iy + dy), ())
+                if not candidates:
                     continue
+                j = min(candidates, key=lambda candidate: abs(float(self.points[candidate, 2] - z0)))
                 dz = abs(float(self.points[j, 2] - z0))
                 if dz > self.max_step:
                     continue
@@ -119,6 +119,10 @@ class FreeGraph:
                 mid = 0.5 * (self.center_pen[i] + self.center_pen[j])
                 cost = geom * (1.0 + self.center_weight * mid * mid)
                 self.adj[i].append((j, cost))
+            for dz_key in (-1, 1):
+                j = self.index.get((ix, iy, iz + dz_key))
+                if j is not None:
+                    self.adj[i].append((j, self.resolution))
 
     def nearest(self, xyz: Sequence[float], max_dist: float) -> Optional[int]:
         query = np.asarray(xyz, dtype=np.float64)
@@ -127,7 +131,12 @@ class FreeGraph:
         if nearby.size == 0:
             return None
         # 点击附近选更居中的格子，避免从走廊边缘起步
-        score = dxy2[nearby] / (max_dist * max_dist + 1.0e-9) + 2.5 * self.center_pen[nearby]
+        dz2 = (self.points[nearby, 2] - query[2]) ** 2
+        score = (
+            dxy2[nearby] / (max_dist * max_dist + 1.0e-9)
+            + dz2 / (self.max_step * self.max_step + 1.0e-9)
+            + 2.5 * self.center_pen[nearby]
+        )
         return int(nearby[int(np.argmin(score))])
 
     def astar(self, start: int, goal: int) -> Optional[np.ndarray]:

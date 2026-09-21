@@ -45,7 +45,23 @@ def read_tum_xyz(path: Path) -> np.ndarray:
 
 
 def load_plan_meta(path: Path) -> dict:
+    path = path.expanduser().resolve()
     meta = json.loads(path.read_text(encoding="utf-8"))
     if "free_pcd" not in meta:
         raise SystemExit("plan json 缺少 free_pcd: {}".format(path))
+    for key in ("free_pcd", "path_tum", "traj"):
+        value = meta.get(key)
+        if not value:
+            continue
+        candidate = Path(value).expanduser()
+        if candidate.is_absolute():
+            meta[key] = str(candidate)
+            continue
+        choices = (
+            path.parent / candidate,
+            path.parent.parent / candidate,
+            Path.cwd() / candidate,
+        )
+        existing = next((item for item in choices if item.exists()), choices[0])
+        meta[key] = str(existing.resolve())
     return meta

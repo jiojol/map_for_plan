@@ -70,7 +70,16 @@ roslaunch map_for_plan visualize.launch \
 
 话题：`/initialpose`、`/move_base_simple/goal`、`/plan_map/global_path`。
 
-规划只在单层 FREE 体素上做 8 邻域 A*，相邻格高度差超过 `max_step`（默认 0.80 m）不连通。代价偏好走廊中央（净空大、靠近采集中线），贴边格子更贵；`center_weight` 越大越居中。
+规划在 FREE 体素表面做三维 A*；同一位置仅在楼层重叠时保留多层。相邻格高度差超过 `max_step`（默认 0.80 m）不连通。代价偏好走廊中央（净空大、靠近采集中线），贴边格子更贵；`center_weight` 越大越居中。
+
+如果 RViz 以 `exit code -11` 崩溃，且系统日志指向 Mesa/OpenGL 的 `.glXXXXXX`，
+可启用软件渲染绕开显卡驱动：
+
+```bash
+roslaunch map_for_plan plan.launch \
+  meta:=/path/to/map_plan.json \
+  rviz_software_rendering:=true
+```
 
 ## 输出
 

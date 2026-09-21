@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TUM 轨迹 -> 单层 FREE 规划地图（不读激光、不裁墙）。"""
+"""TUM 轨迹 -> 连续 FREE 规划地图（不读激光、不裁墙）。"""
 
 from __future__ import annotations
 
@@ -49,41 +49,77 @@ def resample(traj: np.ndarray, stride: float) -> np.ndarray:
     return np.asarray(kept)
 
 
-def inflate_single_layer(xyz: np.ndarray, resolution: float, half_width: float):
-    keys = set()
-    pad = half_width + 0.5 * resolution
+def inflate_continuous_layers(xyz: np.ndarray, resolution: float, half_width: float):
+    """沿三维轨迹密集铺设单体素厚的连续表面。
+
+    同一 XY 允许保留不同楼层的体素，避免楼梯往返或楼层投影重叠时，
+    后选中的高度覆盖前一段轨迹并把可通行带切断。同一次经过在每个
+    XY 只保留离轨迹最近的高度，避免斜坡/台阶叠成竖向厚块。
+    """
+    candidates = {}
+    center_keys = set()
+    radius = half_width + 0.5 * resolution
+    cell_radius = int(math.ceil(radius / resolution))
+    dense_step = 0.4 * resolution
+    sequence = 0
+
     for p0, p1 in zip(xyz[:-1], xyz[1:]):
         delta = p1 - p0
-        dxy = delta[:2]
-        norm = float(np.linalg.norm(dxy))
-        left = np.array([0.0, 1.0]) if norm < 1.0e-8 else np.array([-dxy[1], dxy[0]]) / norm
-        mins = np.minimum(p0[:2], p1[:2]) - pad
-        maxs = np.maximum(p0[:2], p1[:2]) + pad
-        ix0 = int(math.floor(mins[0] / resolution))
-        ix1 = int(math.floor((maxs[0] - 1.0e-9) / resolution))
-        iy0 = int(math.floor(mins[1] / resolution))
-        iy1 = int(math.floor((maxs[1] - 1.0e-9) / resolution))
-        length_sq = float(np.dot(delta, delta))
-        for ix in range(ix0, ix1 + 1):
-            for iy in range(iy0, iy1 + 1):
+        length = float(np.linalg.norm(delta))
+        samples = max(1, int(math.ceil(length / dense_step)))
+        for sample in range(samples):
+            p = p0 + delta * (float(sample) / samples)
+            base_ix = int(math.floor(p[0] / resolution))
+            base_iy = int(math.floor(p[1] / resolution))
+            center_keys.add((base_ix, base_iy, int(math.floor(p[2] / resolution))))
+            for ix in range(base_ix - cell_radius, base_ix + cell_radius + 1):
                 cx = (ix + 0.5) * resolution
-                cy = (iy + 0.5) * resolution
-                if length_sq <= 1.0e-12:
-                    closest = p0
-                else:
-                    query = np.array([cx, cy, p0[2]])
-                    t = min(1.0, max(0.0, float(np.dot(query - p0, delta) / length_sq)))
-                    closest = p0 + t * delta
-                if abs(float(np.dot(np.array([cx, cy]) - closest[:2], left))) <= half_width:
-                    keys.add((ix, iy, int(math.floor(closest[2] / resolution))))
-    collapsed = set()
-    for ix, iy in {(k[0], k[1]) for k in keys}:
-        cx, cy = (ix + 0.5) * resolution, (iy + 0.5) * resolution
-        nearest = int(np.argmin((xyz[:, 0] - cx) ** 2 + (xyz[:, 1] - cy) ** 2))
-        collapsed.add((ix, iy, int(math.floor(xyz[nearest, 2] / resolution))))
-    if not collapsed:
+                for iy in range(base_iy - cell_radius, base_iy + cell_radius + 1):
+                    cy = (iy + 0.5) * resolution
+                    distance_sq = (cx - p[0]) ** 2 + (cy - p[1]) ** 2
+                    if distance_sq <= radius * radius:
+                        candidates.setdefault((ix, iy), []).append(
+                            (sequence, distance_sq, float(p[2]))
+                        )
+            sequence += 1
+
+    # 保证终点也参与铺设。
+    p = xyz[-1]
+    base_ix = int(math.floor(p[0] / resolution))
+    base_iy = int(math.floor(p[1] / resolution))
+    center_keys.add((base_ix, base_iy, int(math.floor(p[2] / resolution))))
+    for ix in range(base_ix - cell_radius, base_ix + cell_radius + 1):
+        cx = (ix + 0.5) * resolution
+        for iy in range(base_iy - cell_radius, base_iy + cell_radius + 1):
+            cy = (iy + 0.5) * resolution
+            distance_sq = (cx - p[0]) ** 2 + (cy - p[1]) ** 2
+            if distance_sq <= radius * radius:
+                candidates.setdefault((ix, iy), []).append(
+                    (sequence, distance_sq, float(p[2]))
+                )
+
+    if not candidates:
         raise SystemExit("没有生成任何体素")
-    return collapsed
+
+    keys = set()
+    # 同一次经过会连续命中一个格子；离开后再次命中则是另一次经过，
+    # 可对应不同楼层。序号间隔阈值略大于走廊直径覆盖的采样数。
+    visit_gap = max(4, int(math.ceil(2.5 * radius / dense_step)))
+    for (ix, iy), values in candidates.items():
+        visit = [values[0]]
+        visits = []
+        for value in values[1:]:
+            if value[0] - visit[-1][0] > visit_gap:
+                visits.append(visit)
+                visit = []
+            visit.append(value)
+        visits.append(visit)
+        for samples in visits:
+            _seq, _distance_sq, z = min(samples, key=lambda value: value[1])
+            keys.add((ix, iy, int(math.floor(z / resolution))))
+
+    keys.update(center_keys)
+    return keys
 
 
 def write_tum_xyz(path: Path, traj: np.ndarray) -> None:
@@ -108,7 +144,7 @@ def write_pcd(path: Path, points: np.ndarray) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="由 TUM 生成单层规划地图")
+    parser = argparse.ArgumentParser(description="由 TUM 生成连续规划地图")
     parser.add_argument("--traj", type=Path, required=True, help="TUM: t x y z [qx qy qz qw]")
     parser.add_argument("--output-prefix", type=Path, default=None)
     parser.add_argument("--resolution", type=float, default=0.20)
@@ -121,11 +157,11 @@ def main() -> int:
     raw = read_tum(args.traj)
     traj = resample(raw, args.pose_stride)
     xyz = traj[:, 1:4]
-    voxels = inflate_single_layer(xyz, args.resolution, args.half_width)
-    points = (np.asarray(list(voxels), dtype=np.float64) + 0.5) * args.resolution
+    voxels = inflate_continuous_layers(xyz, args.resolution, args.half_width)
+    points = (np.asarray(sorted(voxels), dtype=np.float64) + 0.5) * args.resolution
 
     prefix = args.output_prefix or args.traj.expanduser().resolve().with_suffix("")
-    prefix = prefix.expanduser()
+    prefix = prefix.expanduser().resolve()
     if prefix.suffix:
         prefix = prefix.with_suffix("")
     free_pcd = Path(str(prefix) + "_free.pcd")

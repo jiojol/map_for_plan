@@ -50,6 +50,18 @@ def read_pcd_xyz(path: Path) -> np.ndarray:
     raise SystemExit("不支持的 PCD DATA: {}".format(kind))
 
 
+def resolve_meta_file(meta_path: Path, value: str) -> Path:
+    candidate = Path(value).expanduser()
+    if candidate.is_absolute():
+        return candidate
+    choices = (
+        meta_path.parent / candidate,
+        meta_path.parent.parent / candidate,
+        Path.cwd() / candidate,
+    )
+    return next((item.resolve() for item in choices if item.exists()), choices[0].resolve())
+
+
 def to_cloud(points: np.ndarray, frame_id: str, stamp) -> PointCloud2:
     msg = PointCloud2()
     msg.header = Header(stamp=stamp, frame_id=frame_id)
@@ -99,9 +111,10 @@ def main() -> int:
     parser.add_argument("--frame-id", default="map")
     args = parser.parse_args(rospy.myargv(argv=sys.argv)[1:])
 
-    meta = json.loads(args.meta.read_text(encoding="utf-8"))
-    free_pts = read_pcd_xyz(Path(meta["free_pcd"]))
-    path_pts = read_tum_xyz(Path(meta["path_tum"]))
+    meta_path = args.meta.expanduser().resolve()
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    free_pts = read_pcd_xyz(resolve_meta_file(meta_path, meta["free_pcd"]))
+    path_pts = read_tum_xyz(resolve_meta_file(meta_path, meta["path_tum"]))
 
     rospy.init_node("visualize_plan_map")
     frame_id = rospy.get_param("~frame_id", args.frame_id)
